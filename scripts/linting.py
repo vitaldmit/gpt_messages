@@ -13,8 +13,8 @@ def run_command(command):
         command, shell=True, capture_output=True, text=True, check=False
     )
 
-    # if result.stdout:
-    #     print(result.stdout)
+    if result.stdout:
+        print(result.stdout)
     if result.stderr:
         print(result.stderr)
     return result.returncode
@@ -28,7 +28,7 @@ def main():
     exit_code = 0
 
     commands = [
-        f"black {src_path}",
+        f"black {src_path} --quiet",
         f"isort {src_path}",
         f"mypy {src_path}",
         f"pylint {src_path} --disable=too-few-public-methods",

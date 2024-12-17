@@ -76,7 +76,7 @@ class Yandex(GPT):
 
         try:
             resp = requests.post(url, headers=self.headers, json=data, timeout=10)
-        except requests.exceptions.RequestException as e:
+        except requests.exceptions.RequestException:
             return None
 
         return resp.json()
