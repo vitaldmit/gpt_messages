@@ -75,8 +75,53 @@ class Yandex(GPT):
         }
 
         try:
-            resp = requests.post(url, headers=self.headers, json=data, timeout=10)
+            resp = requests.post(url, headers=self.headers, json=data, timeout=30)
         except requests.exceptions.RequestException:
             return None
 
-        return resp.json()
+        response = {
+            "status": resp.status_code,
+            "response": resp.json()["result"]["alternatives"][0]["message"]["text"],
+        }
+        return response
+
+
+class ProxyAPI(GPT):
+    """
+    Класс для работы с API ProxyAPI.
+    https://proxyapi.ru/docs
+    """
+
+    def __init__(self, api_key: str | None) -> None:
+        self.api_key = api_key
+
+        self.headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}",
+        }
+
+    def generate_text(self, system_prompt: str, user_prompt: str) -> dict | None:
+        """
+        Метод для генерации текста через ProxyAPI.
+        """
+        url = config["PROXY_API"]["URL"]
+
+        data = {
+            "model": "gpt-4o-mini",
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            "max_tokens": config.getint("PROXY_API", "MAXTOKENS"),
+        }
+
+        try:
+            resp = requests.post(url, headers=self.headers, json=data, timeout=30)
+        except requests.exceptions.RequestException:
+            return None
+
+        response = {
+            "status": resp.status_code,
+            "text": resp.json()["choices"][0]["message"]["content"],
+        }
+        return response

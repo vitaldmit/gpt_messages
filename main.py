@@ -10,12 +10,13 @@ import sys
 from dotenv import load_dotenv
 
 from classes.databases import SqLite
-from classes.gpts import Yandex
+from classes.gpts import ProxyAPI
 from classes.messengers import Telegram
 
 load_dotenv()
 yandex_oauth_token = os.getenv("YANDEX_OAUTH_TOKEN")
 yandex_folder_id = os.getenv("YANDEX_FOLDER_ID")
+proxy_api_key = os.getenv("PROXY_API_KEY")
 telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
 telegram_chat_id = os.getenv("TELEGRAM_CHAT_ID")
 
@@ -55,16 +56,16 @@ if __name__ == "__main__":
         user_prompt += f" {additional_prompt} {DB_ENTRIES}."
 
     # Получаем ответ от GPT.
-    yandex_gpt = Yandex(yandex_oauth_token, yandex_folder_id)
-    response = yandex_gpt.generate_text(system_prompt, user_prompt)
+    # gpt = Yandex(yandex_oauth_token, yandex_folder_id)
+    gpt = ProxyAPI(proxy_api_key)
 
-    if not response or "error" in response:
-        telegram.send_message(
-            f"Ответ от YandexGPT c ошибкой. Response: `{str(response)}`"
-        )
+    response = gpt.generate_text(system_prompt, user_prompt)
+
+    if not response or response["status"] != 200:
+        telegram.send_message(f"Ответ от GPT c ошибкой. Response: `{str(response)}`")
         sys.exit()
 
-    response_text = response["result"]["alternatives"][0]["message"]["text"]
+    response_text = response["text"]
 
     # Отправляем ответ в Telegram.
     # Если отправка прошла успешно, то сохраняем полученную
