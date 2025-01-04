@@ -76,14 +76,15 @@ class Yandex(GPT):
 
         try:
             resp = requests.post(url, headers=self.headers, json=data, timeout=30)
-        except requests.exceptions.RequestException:
-            return None
 
-        response = {
-            "status": resp.status_code,
-            "response": resp.json()["result"]["alternatives"][0]["message"]["text"],
-        }
-        return response
+            response = {
+                "status": resp.status_code,
+                "text": resp.json()["result"]["alternatives"][0]["message"]["text"],
+            }
+
+            return response
+        except (requests.exceptions.RequestException, KeyError):
+            return None
 
 
 class ProxyAPI(GPT):
@@ -117,11 +118,12 @@ class ProxyAPI(GPT):
 
         try:
             resp = requests.post(url, headers=self.headers, json=data, timeout=30)
-        except requests.exceptions.RequestException:
-            return None
 
-        response = {
-            "status": resp.status_code,
-            "text": resp.json()["choices"][0]["message"]["content"],
-        }
-        return response
+            response = {
+                "status": resp.status_code,
+                "text": resp.json()["choices"][0]["message"]["content"],
+            }
+
+            return response
+        except (requests.exceptions.RequestException, KeyError):
+            return None
