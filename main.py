@@ -10,7 +10,7 @@ import sys
 from dotenv import load_dotenv
 
 from classes.databases import SqLite
-from classes.gpts import ProxyAPI
+from classes.gpts import Yandex
 from classes.messengers import Telegram
 
 load_dotenv()
@@ -56,8 +56,8 @@ if __name__ == "__main__":
         user_prompt += f" {additional_prompt} {DB_ENTRIES}."
 
     # Получаем ответ от GPT.
-    # gpt = Yandex(yandex_oauth_token, yandex_folder_id)
-    gpt = ProxyAPI(proxy_api_key)
+    gpt = Yandex(yandex_oauth_token, yandex_folder_id)
+    # gpt = ProxyAPI(proxy_api_key)
 
     response = gpt.generate_text(system_prompt, user_prompt)
 

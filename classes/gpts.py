@@ -20,6 +20,14 @@ class GPT(ABC):
     Абстрактный класс для работы с GPT.
     """
 
+    def __init__(self, api_key: str | None) -> None:
+        self.api_key = api_key
+
+        self.headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}",
+        }
+
     @abstractmethod
     def generate_text(self, system_prompt: str, user_prompt: str) -> dict | None:
         """
@@ -35,11 +43,7 @@ class Yandex(GPT):
     def __init__(self, oauth_token: str | None, folder_id: str | None) -> None:
         self.iam_token = self._get_iam_token(oauth_token)
         self.folder_id = folder_id
-
-        self.headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.iam_token}",
-        }
+        super().__init__(self.iam_token)
 
     def _get_iam_token(self, oauth_token: str | None) -> str | None:
         """
@@ -95,11 +99,7 @@ class ProxyAPI(GPT):
 
     def __init__(self, api_key: str | None) -> None:
         self.api_key = api_key
-
-        self.headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}",
-        }
+        super().__init__(self.api_key)
 
     def generate_text(self, system_prompt: str, user_prompt: str) -> dict | None:
         """
