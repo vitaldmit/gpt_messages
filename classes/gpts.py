@@ -107,7 +107,7 @@ class ProxyAPI(GPT):
         url = config["PROXY_API"]["URL"]
 
         data = {
-            "model": "claude-3-7-sonnet-20250219",
+            "model": "gpt-4o-mini",
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
