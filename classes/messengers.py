@@ -14,7 +14,7 @@ class Messenger(ABC):
     """
 
     @abstractmethod
-    def send_message(self, message: str) -> bool:
+    def send_message(self, whom, message):
         """
         Отправка сообщения.
         """
@@ -26,18 +26,17 @@ class Telegram(Messenger):
     Класс для работы с Telegram.
     """
 
-    def __init__(self, bot_token: str | None, chat_id: str | None) -> None:
+    def __init__(self, bot_token):
         self.bot_token = bot_token
-        self.chat_id = chat_id
 
-    def send_message(self, message: str) -> bool:
+    def send_message(self, whom, message):
         """
         Отправка сообщения в Telegram.
         """
         url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
 
         data = {
-            "chat_id": self.chat_id,
+            "chat_id": whom,
             "text": message,
             "parse_mode": "Markdown",
         }

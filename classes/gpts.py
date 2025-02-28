@@ -3,9 +3,11 @@
 """
 
 import configparser
+import os
 from abc import ABC
 
 import requests
+from dotenv import load_dotenv
 
 config = configparser.ConfigParser()
 config.read("config.ini", encoding="utf-8")
@@ -13,7 +15,6 @@ config.read("config.ini", encoding="utf-8")
 project_name = config["PROJECT"]["NAME"]
 
 
-# Классы для работы с GPT.
 class GPT(ABC):
     """
     Абстрактный класс для работы с GPT.
@@ -33,16 +34,18 @@ class Yandex(GPT):
     Класс для работы с API YandexGPT.
     """
 
-    def __init__(self, oauth_token, folder_id):
+    def __init__(self, oauth_token):
+        load_dotenv()
         self.iam_token = self._get_iam_token(oauth_token)
-        self.folder_id = folder_id
+        self.folder_id = os.getenv("YANDEX_FOLDER_ID")
+        self.max_tokens = config.getint("YANDEX", "MAX_TOKENS")
         super().__init__(self.iam_token)
 
     def _get_iam_token(self, oauth_token):
         """
         Получение IAM-токена.
         """
-        url = config["YANDEX"]["IAM_TOKEN_URL"]
+        url = "https://iam.api.cloud.yandex.net/iam/v1/tokens"
         data = {"yandexPassportOauthToken": oauth_token}
 
         try:
@@ -51,19 +54,19 @@ class Yandex(GPT):
         except (requests.exceptions.RequestException, KeyError):
             return None
 
-    def generate_text(self, system_prompt, user_prompt):
+    def yandex(self, system_prompt, user_prompt, model):
         """
         Функция для генерации текста с помощью модели YandexGPT.
         """
 
-        url = config["YANDEX"]["MODEL_URL"]
+        url = "https://llm.api.cloud.yandex.net/foundationModels/v1/completion"
 
         data = {
-            "modelUri": f"gpt://{self.folder_id}/{config['YANDEX']['MODEL']}",
+            "modelUri": f"gpt://{self.folder_id}/{model}",
             "completionOptions": {
                 "stream": config.getboolean("YANDEX", "STREAM"),
                 "temperature": config.getfloat("YANDEX", "TEMPERATURE"),
-                "maxTokens": config["YANDEX"]["MAXTOKENS"],
+                "maxTokens": config["YANDEX"]["MAX_TOKENS"],
             },
             "messages": [
                 {"role": "system", "text": system_prompt},
@@ -72,16 +75,18 @@ class Yandex(GPT):
         }
 
         try:
-            resp = requests.post(url, headers=self.headers, json=data, timeout=30)
+            response = requests.post(url, headers=self.headers, json=data, timeout=30)
 
-            response = {
-                "status": resp.status_code,
-                "text": resp.json()["result"]["alternatives"][0]["message"]["text"],
+            return {
+                "status": True,
+                "text": response.json()["result"]["alternatives"][0]["message"]["text"],
             }
 
-            return response
-        except (requests.exceptions.RequestException, KeyError):
-            return None
+        except (requests.exceptions.RequestException, KeyError) as e:
+            return {
+                "status": False,
+                "text": f"Yandex API error: {e}",
+            }
 
 
 class ProxyAPI(GPT):
@@ -92,112 +97,137 @@ class ProxyAPI(GPT):
 
     def __init__(self, api_key):
         self.api_key = api_key
+        self.max_tokens = config.getint("PROXY_API", "MAX_TOKENS")
         super().__init__(self.api_key)
 
     def openai(self, system_prompt, user_prompt, model):
         """
-        Метод для генерации текста через ProxyAPI.
+        Функция для генерации текста с помощью модели OpenAI.
         """
-        url = config["PROXY_API"]["OPEN_AI_URL"]
+        from openai import OpenAI, OpenAIError  # pylint: disable=C
 
-        data = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            "max_tokens": config.getint("PROXY_API", "MAXTOKENS"),
-        }
+        client = OpenAI(
+            api_key=self.api_key,
+            base_url="https://api.proxyapi.ru/openai/v1",
+        )
 
         try:
-            resp = requests.post(url, headers=self.headers, json=data, timeout=30)
+            completion = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                max_tokens=self.max_tokens,
+            )
 
-            response = {
-                "status": resp.status_code,
-                "text": resp.json()["choices"][0]["message"]["content"],
+            return {
+                "status": True,
+                "text": completion.choices[0].message.content,
             }
 
-            return response
-        except (requests.exceptions.RequestException, KeyError):
-            return None
+        except OpenAIError as e:
+            return {
+                "status": False,
+                "text": f"OpenAI API error: {e}",
+            }
 
     def claude(self, system_prompt, user_prompt, model):
         """
-        Метод для генерации текста через ProxyAPI.
+        Функция для генерации текста с помощью модели Claude.
         """
-        url = config["PROXY_API"]["ANTHROPIC_URL"]
+        from anthropic import Anthropic, AnthropicError  # pylint: disable=C
 
-        data = {
-            "model": model,
-            "system": system_prompt,
-            "messages": [
-                {"role": "user", "content": user_prompt},
-            ],
-            "max_tokens": config.getint("PROXY_API", "MAXTOKENS"),
-        }
+        client = Anthropic(
+            api_key=self.api_key,
+            base_url="https://api.proxyapi.ru/anthropic",
+        )
 
         try:
-            resp = requests.post(url, headers=self.headers, json=data, timeout=30)
+            completion = client.messages.create(
+                model=model,
+                system=system_prompt,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": user_prompt,
+                    }
+                ],
+                max_tokens=config.getint("PROXY_API", "MAX_TOKENS"),
+            )
 
-            response = {
-                "status": resp.status_code,
-                "text": resp.json()["content"][0]["text"],
+            return {
+                "status": True,
+                "text": completion.content[0].text.strip(),
             }
 
-            return response
-        except (requests.exceptions.RequestException, KeyError):
-            return None
+        except AnthropicError as e:
+            return {
+                "status": False,
+                "text": f"Anthropic API error: {e}",
+            }
+
+    def deepseek(self, system_prompt, user_prompt, model):
+        """
+        Функция для генерации текста с помощью модели DeepSeek.
+        """
+        from openai import OpenAI, OpenAIError  # pylint: disable=C
+
+        client = OpenAI(
+            api_key=self.api_key,
+            base_url="https://api.proxyapi.ru/deepseek",
+        )
+
+        try:
+            completion = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                max_tokens=config.getint("PROXY_API", "MAX_TOKENS"),
+            )
+
+            return {
+                "status": True,
+                "text": completion.choices[0].message.content,
+            }
+
+        except OpenAIError as e:
+            return {
+                "status": False,
+                "text": f"Deepseek API error: {e}",
+            }
 
     def gemini(self, system_prompt, user_prompt, model):
         """
-        Метод для генерации текста через ProxyAPI.
+        Функция для генерации текста с помощью модели Gemini.
         """
         url = config["PROXY_API"]["GOOGLE_URL"] + model + ":generateContent"
 
         data = {
             "model": model,
             "contents": [
-                {"role": "user", "parts": [{"text": system_prompt}]},
-                {"role": "user", "parts": [{"text": user_prompt}]},
+                {
+                    "role": "user",
+                    "parts": [
+                        {"text": system_prompt},
+                        {"text": user_prompt},
+                    ],
+                },
             ],
         }
 
         try:
-            resp = requests.post(url, headers=self.headers, json=data, timeout=30)
-            print(f"{resp.json()=}")
+            response = requests.post(url, headers=self.headers, json=data, timeout=30)
 
-            response = {
-                "status": resp.status_code,
-                "text": resp.json()["candidates"][0]["content"]["parts"][0]["text"],
+            return {
+                "status": response.status_code,
+                "text": response.json()["candidates"][0]["content"]["parts"][0]["text"],
             }
 
-            return response
-        except (requests.exceptions.RequestException, KeyError):
-            return None
-
-    def deepseek(self, system_prompt, user_prompt, model):
-        """
-        Метод для генерации текста через ProxyAPI.
-        """
-        url = config["PROXY_API"]["DEEPSEEK_URL"]
-
-        data = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            "max_tokens": config.getint("PROXY_API", "MAXTOKENS"),
-        }
-
-        try:
-            resp = requests.post(url, headers=self.headers, json=data, timeout=30)
-
-            response = {
-                "status": resp.status_code,
-                "text": resp.json()["choices"][0]["message"]["content"],
+        except (requests.exceptions.RequestException, KeyError) as e:
+            return {
+                "status": False,
+                "text": f"Gemini API error: {e}",
             }
-
-            return response
-        except (requests.exceptions.RequestException, KeyError):
-            return None

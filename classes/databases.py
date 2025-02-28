@@ -21,13 +21,13 @@ class Database(ABC):
     """
 
     @abstractmethod
-    def get_from_db(self) -> list:
+    def get_from_db(self):
         """
         Получение из базы данных.
         """
 
     @abstractmethod
-    def add_to_db(self) -> None:
+    def add_to_db(self):
         """
         Добавление в базу данных.
         """
@@ -55,7 +55,7 @@ class SqLite(Base):
         self.session = sessionmaker(bind=self.engine)
         Base.metadata.create_all(self.engine)
 
-    def get_from_db(self) -> list:
+    def get_from_db(self):
         """
         Получение из базы данных.
         """
@@ -66,7 +66,7 @@ class SqLite(Base):
         finally:
             session.close()
 
-    def write_to_db(self, db_entry: str) -> None:
+    def write_to_db(self, db_entry):
         """
         Запись в базу данных.
         """
