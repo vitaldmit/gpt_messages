@@ -27,8 +27,8 @@ config.read("config.ini", encoding="utf-8")
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    filename=f"{config['DEFAULT']['NAME']}.log",
-    filemode="a",
+    filename=f"{config['PROJECT']['NAME']}.log",
+    filemode="w",
 )
 
 
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     # gpt = Yandex(yandex_oauth_token, yandex_folder_id)
     gpt = ProxyAPI(proxy_api_key)
 
-    response = gpt.generate_text(system_prompt, user_prompt)
+    response = gpt.gemini(system_prompt, user_prompt, model="gemini-1.5-flash")
 
     if not response or response["status"] != 200:
         telegram.send_message(f"Ответ от GPT c ошибкой. Response: `{str(response)}`")
@@ -73,6 +73,7 @@ if __name__ == "__main__":
     success = telegram.send_message(response_text)
 
     if success:
-        # "Вычленяем" идею из ответа и сохраняем ее в базу данных.
+        # "Вычленяем" идею из ответа и сохраняем ее в базу данных
+        # для последующего использования в ADDITIONAL_PROMPT.
         db_entry = response_text.split(".")[0].split("Идея: ")[1]
         database.write_to_db(db_entry)
