@@ -2,3 +2,5 @@ requests
 types-requests
 sqlalchemy
 python-dotenv
+openai
+anthropic
